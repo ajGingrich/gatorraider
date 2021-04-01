@@ -26,7 +26,7 @@ public final class StudentAttackerController implements AttackerController
 			return closeToPowerPill;
 		}
 
-		int moveByDefender = getDirectionByDefenders(game, curLocation, gator, defenders);
+		int moveByDefender = getDirectionByDefenders(game, curLocation, gator, defenders, pills);
 		if (moveByDefender != -1) {
 			return moveByDefender;
 		}
@@ -51,21 +51,20 @@ public final class StudentAttackerController implements AttackerController
 		List<Integer> possibleDirs = gator.getPossibleDirs(false);
 		int currentDirection = gator.getDirection();
 
-		if (curLocation.isJunction()) {
-			return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
-		}
-
-		// can't keep going current direction so hit a wall
-		if (!possibleDirs.contains(currentDirection)) {
-			return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
-		}
+//		if (curLocation.isJunction()) {
+//			return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
+//		}
+//
+//		// can't keep going current direction so hit a wall
+//		if (!possibleDirs.contains(currentDirection)) {
+//			return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
+//		}
 
 		// if the next direction is not a pill
 		// List<Node> locations = gator.getPossibleLocations(true);
 
-
 		// just keep going the same direction
-		return Game.Direction.EMPTY;
+		return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
 	}
 
 	private int getDirectionByPills(Attacker gator, List<Node> pills) {
@@ -74,9 +73,9 @@ public final class StudentAttackerController implements AttackerController
 			return Game.Direction.EMPTY;
 		}
 
-		Node closestPowerPill = gator.getTargetNode(pills, true);
+		Node closestPill = gator.getTargetNode(pills, true);
 
-		return gator.getNextDir(closestPowerPill, true);
+		return gator.getNextDir(closestPill, true);
 	}
 
 	private int getDirectionByPowerPills(Game game, Node curLocation, Attacker gator, List<Node> powerPills, int range) {
@@ -101,7 +100,7 @@ public final class StudentAttackerController implements AttackerController
 		return Game.Direction.EMPTY;
 	}
 
-	private int getDirectionByDefenders(Game game, Node curLocation, Attacker gator, List<Defender> defenders) {
+	private int getDirectionByDefenders(Game game, Node curLocation, Attacker gator, List<Defender> defenders, List<Node> pills) {
 		Node closestDefenderLocation = gator.getTargetNode(getDefenderLocations(defenders), true);
 		int distance = curLocation.getPathDistance(closestDefenderLocation);
 
@@ -119,12 +118,27 @@ public final class StudentAttackerController implements AttackerController
 		}
 
 		// close defender that is dangerous
-		// TODO: implement some avoiding logic
-//		if (distance < 5) {
-//			return gator.getNextDir(closestDefenderLocation, false);
-//		}
+		if (distance < 10) {
+			return avoidDefender(game, curLocation, gator, closestDefenderLocation, pills);
+		}
 
 		return Game.Direction.EMPTY;
+	}
+
+	// todo - need to handle multiple defenders
+	private int avoidDefender(Game game, Node curLocation, Attacker gator, Node closestDefenderLocation, List<Node> pills) {
+		int defaultAvoidance = gator.getNextDir(closestDefenderLocation, false);
+
+		// get the attacker direction and try to go to a pill
+		int attackerDirection = gator.getNextDir(closestDefenderLocation, true);
+		int toNextPill = getDirectionByPills(gator, pills);
+
+		if (toNextPill != attackerDirection) {
+			return toNextPill;
+		}
+
+		// default avoidance
+		return defaultAvoidance;
 	}
 
 	// java 8 stream https://docs.oracle.com/javase/8/docs/api/java/util/stream/Stream.html
