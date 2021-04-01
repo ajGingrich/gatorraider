@@ -11,6 +11,7 @@ public final class StudentAttackerController implements AttackerController
 
 	public void shutdown(Game game) { }
 
+	// returns the direction to the closet normal pill
 	private int getDirectionByPills(Attacker gator, List<Node> pills) {
 		// this should never happen as it resets
 		if (pills.size() == 0) {
@@ -22,7 +23,9 @@ public final class StudentAttackerController implements AttackerController
 		return gator.getNextDir(closestPill, true);
 	}
 
-	private int getDirectionByPowerPills(Game game, Node curLocation, Attacker gator, List<Node> powerPills, int range) {
+	// accepts a range and returns the direction to the power pill in that range
+	// if there is no such power pill in range, returns -1
+	private int getDirectionByPowerPills(Node curLocation, Attacker gator, List<Node> powerPills, int range) {
 		// no more power pills left
 		if (powerPills.size() == 0) {
 			return Game.Direction.EMPTY;
@@ -37,14 +40,15 @@ public final class StudentAttackerController implements AttackerController
 		}
 
 		if (distance < range) {
-			gator.addPathTo(game, Color.RED, closestPowerPill);
 			return gator.getNextDir(closestPowerPill, true);
 		}
 
 		return Game.Direction.EMPTY;
 	}
 
-	private int getDirectionByDefenders(Game game, Node curLocation, Attacker gator, List<Defender> defenders, List<Node> pills) {
+	// if a defender is putting us in danger - avoid it
+	// alternatively, if a close defender can be eaten - eat it
+	private int getDirectionByDefenders(Node curLocation, Attacker gator, List<Defender> defenders, List<Node> pills) {
 		Node closestDefenderLocation = gator.getTargetNode(getDefenderLocations(defenders), true);
 		int distance = curLocation.getPathDistance(closestDefenderLocation);
 
@@ -57,20 +61,19 @@ public final class StudentAttackerController implements AttackerController
 
 		// eat the close vulnerable defenders
 		if (distance < 15 && d.isVulnerable() && d.getVulnerableTime() > 5) {
-			gator.addPathTo(game, Color.ORANGE, closestDefenderLocation);
 			return gator.getNextDir(closestDefenderLocation, true);
 		}
 
 		// close defender that is dangerous
 		if (distance < 10) {
-			return avoidDefender(game, curLocation, gator, closestDefenderLocation, pills);
+			return avoidDefender(gator, closestDefenderLocation, pills);
 		}
 
 		return Game.Direction.EMPTY;
 	}
 
-	// TODO - need to handle multiple defenders
-	private int avoidDefender(Game game, Node curLocation, Attacker gator, Node closestDefenderLocation, List<Node> pills) {
+	// avoid the defender and try to get to a nearby pill if not blocked by defender
+	private int avoidDefender(Attacker gator, Node closestDefenderLocation, List<Node> pills) {
 		int defaultAvoidance = gator.getNextDir(closestDefenderLocation, false);
 
 		// get the attacker direction and try to go to a pill in a different direction
@@ -81,15 +84,15 @@ public final class StudentAttackerController implements AttackerController
 			return toNextPill;
 		}
 
-		// default avoidance
 		return defaultAvoidance;
 	}
 
-	// java 8 stream https://docs.oracle.com/javase/8/docs/api/java/util/stream/Stream.html
+	// gets the location nodes for all of the defenders using java 8 streams
 	private List<Node> getDefenderLocations(List<Defender> defenders) {
 		return defenders.stream().map(Defender::getLocation).collect(Collectors.toList());
 	}
 
+	// grab the defender from a particular location on the map
 	private Defender getDefenderByLocation(List<Defender> defenders, Node n) {
 		int nodeX = n.getX();
 		int nodeY = n.getY();
@@ -117,19 +120,19 @@ public final class StudentAttackerController implements AttackerController
 		List<Node> pills = game.getPillList();
 
 		// very close to power pill -> so get it
-		int immediatePowerPill = getDirectionByPowerPills(game, curLocation, gator, powerPills, 10);
+		int immediatePowerPill = getDirectionByPowerPills(curLocation, gator, powerPills, 10);
 		if (immediatePowerPill != -1) {
 			return immediatePowerPill;
 		}
 
 		// immediately under pressure or able to eat a somewhat close vulnerable defender
-		int moveByDefender = getDirectionByDefenders(game, curLocation, gator, defenders, pills);
+		int moveByDefender = getDirectionByDefenders(curLocation, gator, defenders, pills);
 		if (moveByDefender != -1) {
 			return moveByDefender;
 		}
 
 		// there is an medium range power pill available
-		int intermediatePowerPill = getDirectionByPowerPills(game, curLocation, gator, powerPills, 60);
+		int intermediatePowerPill = getDirectionByPowerPills(curLocation, gator, powerPills, 60);
 		if (intermediatePowerPill != -1) {
 			return intermediatePowerPill;
 		}
