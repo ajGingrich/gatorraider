@@ -5,67 +5,11 @@ import java.awt.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/* This is the only place where code where be added */
 public final class StudentAttackerController implements AttackerController
 {
 	public void init(Game game) { }
 
 	public void shutdown(Game game) { }
-
-	private int makeDecision(
-			Game game,
-			Node curLocation,
-			Attacker gator,
-			List<Node> powerPills,
-			List<Defender> defenders,
-			List<Node> pills
-	) {
-		// very close to power pill -> so get it
-		int closeToPowerPill = getDirectionByPowerPills(game, curLocation, gator, powerPills, 10);
-		if (closeToPowerPill != -1) {
-			return closeToPowerPill;
-		}
-
-		int moveByDefender = getDirectionByDefenders(game, curLocation, gator, defenders, pills);
-		if (moveByDefender != -1) {
-			return moveByDefender;
-		}
-
-		int directionToPowerPill = getDirectionByPowerPills(game, curLocation, gator, powerPills, 50);
-		if (directionToPowerPill != -1) {
-			return directionToPowerPill;
-		}
-
-		return getDirectionByPills(gator, pills);
-	}
-
-	// most of the decisioning logic will live here
-	private int getDirection(
-			Game game,
-			Attacker gator,
-			List<Node> powerPills,
-			List<Defender> defenders,
-			List<Node> pills,
-			Node curLocation
-	) {
-		List<Integer> possibleDirs = gator.getPossibleDirs(false);
-		int currentDirection = gator.getDirection();
-
-//		if (curLocation.isJunction()) {
-//			return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
-//		}
-//
-//		// can't keep going current direction so hit a wall
-//		if (!possibleDirs.contains(currentDirection)) {
-//			return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
-//		}
-
-		// if the next direction is not a pill
-		// List<Node> locations = gator.getPossibleLocations(true);
-
-		// just keep going the same direction
-		return makeDecision(game, curLocation, gator, powerPills, defenders, pills);
-	}
 
 	private int getDirectionByPills(Attacker gator, List<Node> pills) {
 		// this should never happen as it resets
@@ -112,7 +56,7 @@ public final class StudentAttackerController implements AttackerController
 		Defender d = getDefenderByLocation(defenders, closestDefenderLocation);
 
 		// eat the close vulnerable defenders
-		if (distance < 20 && d.isVulnerable() && d.getVulnerableTime() > 5) {
+		if (distance < 15 && d.isVulnerable() && d.getVulnerableTime() > 5) {
 			gator.addPathTo(game, Color.ORANGE, closestDefenderLocation);
 			return gator.getNextDir(closestDefenderLocation, true);
 		}
@@ -125,11 +69,11 @@ public final class StudentAttackerController implements AttackerController
 		return Game.Direction.EMPTY;
 	}
 
-	// todo - need to handle multiple defenders
+	// TODO - need to handle multiple defenders
 	private int avoidDefender(Game game, Node curLocation, Attacker gator, Node closestDefenderLocation, List<Node> pills) {
 		int defaultAvoidance = gator.getNextDir(closestDefenderLocation, false);
 
-		// get the attacker direction and try to go to a pill
+		// get the attacker direction and try to go to a pill in a different direction
 		int attackerDirection = gator.getNextDir(closestDefenderLocation, true);
 		int toNextPill = getDirectionByPills(gator, pills);
 
@@ -144,10 +88,6 @@ public final class StudentAttackerController implements AttackerController
 	// java 8 stream https://docs.oracle.com/javase/8/docs/api/java/util/stream/Stream.html
 	private List<Node> getDefenderLocations(List<Defender> defenders) {
 		return defenders.stream().map(Defender::getLocation).collect(Collectors.toList());
-	}
-
-	private List<Defender> getVunerableDefenders(List<Defender> defenders) {
-		return defenders.stream().filter(Defender::isVulnerable).collect(Collectors.toList());
 	}
 
 	private Defender getDefenderByLocation(List<Defender> defenders, Node n) {
@@ -176,6 +116,25 @@ public final class StudentAttackerController implements AttackerController
 		List<Node> powerPills = game.getPowerPillList();
 		List<Node> pills = game.getPillList();
 
-		return getDirection(game, gator, powerPills, defenders, pills, curLocation);
+		// very close to power pill -> so get it
+		int immediatePowerPill = getDirectionByPowerPills(game, curLocation, gator, powerPills, 10);
+		if (immediatePowerPill != -1) {
+			return immediatePowerPill;
+		}
+
+		// immediately under pressure or able to eat a somewhat close vulnerable defender
+		int moveByDefender = getDirectionByDefenders(game, curLocation, gator, defenders, pills);
+		if (moveByDefender != -1) {
+			return moveByDefender;
+		}
+
+		// there is an medium range power pill available
+		int intermediatePowerPill = getDirectionByPowerPills(game, curLocation, gator, powerPills, 60);
+		if (intermediatePowerPill != -1) {
+			return intermediatePowerPill;
+		}
+
+		// just get the next normal pill
+		return getDirectionByPills(gator, pills);
 	}
 }
